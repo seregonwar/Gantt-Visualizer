@@ -10,49 +10,89 @@
         body {
             font-family: Arial, sans-serif;
             text-align: center;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        #container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            display: inline-block;
         }
         #gantt_here {
-            width: 90%;
+            width: 100%;
             height: 600px;
-            margin: auto;
+            margin-top: 20px;
         }
-        input {
-            margin: 20px;
+        input, button {
+            margin: 10px;
+            padding: 10px;
+            font-size: 16px;
         }
     </style>
 </head>
 <body>
-    <h1>Visualizzatore Gantt</h1>
-    <p>Carica un file .gan per visualizzare il diagramma di Gantt</p>
-    <input type="file" id="fileInput" accept=".gan">
-    <div id="gantt_here"></div>
+    <div id="container">
+        <h1>Visualizzatore Gantt</h1>
+        <p>Carica un file .gan e clicca su "Carica Progetto" per visualizzarlo</p>
+        <input type="file" id="fileInput" accept=".gan">
+        <button id="loadButton">Carica Progetto</button>
+        <div id="gantt_here"></div>
+    </div>
 
     <script>
-        document.getElementById('fileInput').addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const parser = new DOMParser();
-                    const xmlDoc = parser.parseFromString(e.target.result, "text/xml");
-                    
-                    const tasks = [];
-                    xmlDoc.querySelectorAll('task').forEach(task => {
-                        tasks.push({
-                            id: task.getAttribute('id'),
-                            text: task.getAttribute('name'),
-                            start_date: new Date(parseInt(task.getAttribute('start'))).toISOString().split('T')[0],
-                            duration: parseInt(task.getAttribute('duration'))
-                        });
-                    });
-                    
-                    gantt.init("gantt_here");
-                    gantt.parse({
-                        data: tasks
-                    });
-                };
-                reader.readAsText(file);
+        document.getElementById('loadButton').addEventListener('click', function() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length === 0) {
+                alert("Seleziona un file .gan prima di caricare il progetto.");
+                return;
             }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(e.target.result, "text/xml");
+                
+                const tasks = [];
+                const links = [];
+                const resources = {};
+                
+                // Parsing risorse
+                xmlDoc.querySelectorAll('resource').forEach(resource => {
+                    resources[resource.getAttribute('id')] = resource.getAttribute('name');
+                });
+                
+                // Parsing attività
+                xmlDoc.querySelectorAll('task').forEach(task => {
+                    tasks.push({
+                        id: task.getAttribute('id'),
+                        text: task.getAttribute('name'),
+                        start_date: new Date(parseInt(task.getAttribute('start'))).toISOString().split('T')[0],
+                        duration: parseInt(task.getAttribute('duration')),
+                        progress: parseFloat(task.getAttribute('complete')) / 100 || 0,
+                        resources: (task.getAttribute('resources') || '').split(',').map(r => resources[r] || 'N/A').join(', ')
+                    });
+                });
+                
+                // Parsing precedenze (link tra task)
+                xmlDoc.querySelectorAll('dependency').forEach(dep => {
+                    links.push({
+                        id: dep.getAttribute('id'),
+                        source: dep.getAttribute('predecessor'),
+                        target: dep.getAttribute('successor'),
+                        type: dep.getAttribute('type') // 0 = Finish-to-Start, ecc.
+                    });
+                });
+                
+                gantt.init("gantt_here");
+                gantt.parse({
+                    data: tasks,
+                    links: links
+                });
+            };
+            reader.readAsText(file);
         });
     </script>
 </body>
