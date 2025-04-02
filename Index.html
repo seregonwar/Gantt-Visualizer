@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizzatore Gantt</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dhtmlx/6.5.3/dhtmlxgantt.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dhtmlx/6.5.3/dhtmlxgantt.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #gantt_here {
+            width: 90%;
+            height: 600px;
+            margin: auto;
+        }
+        input {
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Visualizzatore Gantt</h1>
+    <p>Carica un file .gan per visualizzare il diagramma di Gantt</p>
+    <input type="file" id="fileInput" accept=".gan">
+    <div id="gantt_here"></div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(e.target.result, "text/xml");
+                    
+                    const tasks = [];
+                    xmlDoc.querySelectorAll('task').forEach(task => {
+                        tasks.push({
+                            id: task.getAttribute('id'),
+                            text: task.getAttribute('name'),
+                            start_date: new Date(parseInt(task.getAttribute('start'))).toISOString().split('T')[0],
+                            duration: parseInt(task.getAttribute('duration'))
+                        });
+                    });
+                    
+                    gantt.init("gantt_here");
+                    gantt.parse({
+                        data: tasks
+                    });
+                };
+                reader.readAsText(file);
+            }
+        });
+    </script>
+</body>
+</html>
